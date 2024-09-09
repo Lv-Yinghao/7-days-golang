@@ -2,23 +2,33 @@ package session
 
 import (
 	"database/sql"
+	"geeorm/clause"
+	"geeorm/dialect"
 	"geeorm/log"
+	"geeorm/schema"
 	"strings"
 )
 
 type Session struct {
-	db      *sql.DB
-	sql     strings.Builder
-	sqlVars []interface{}
+	db       *sql.DB
+	sql      strings.Builder
+	sqlVars  []interface{}
+	dialect  dialect.Dialect
+	refTable *schema.Schema
+	clause   clause.Clause
 }
 
-func New(db *sql.DB) *Session {
-	return &Session{db: db}
+func New(db *sql.DB, dialect dialect.Dialect) *Session {
+	return &Session{
+		db:      db,
+		dialect: dialect,
+	}
 }
 
 func (s *Session) Clear() {
 	s.sql.Reset()
 	s.sqlVars = nil
+	s.clause = clause.Clause{}
 }
 
 func (s *Session) DB() *sql.DB {
@@ -47,14 +57,11 @@ func (s *Session) QueryRow() *sql.Row {
 	return s.DB().QueryRow(s.sql.String(), s.sqlVars...)
 }
 
-func (s *Session) QueryRows() *sql.Rows {
+func (s *Session) QueryRows() (rows *sql.Rows, err error) {
 	defer s.Clear()
 	log.Info(s.sql.String(), s.sqlVars)
-	if rows, err := s.DB().Query(s.sql.String(), s.sqlVars...); err != nil {
+	if rows, err = s.DB().Query(s.sql.String(), s.sqlVars...); err != nil {
 		log.Error(err)
-	} else {
-		return rows
 	}
-
-	return nil
+	return
 }

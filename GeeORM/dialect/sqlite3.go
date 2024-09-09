@@ -8,8 +8,6 @@ import (
 
 type sqlite3 struct{}
 
-var _ Dialect = (*sqlite3)(nil)
-
 func init() {
 	RegisterDialect("sqlite3", &sqlite3{})
 }

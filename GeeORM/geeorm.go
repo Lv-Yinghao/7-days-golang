@@ -1,32 +1,41 @@
-package GeeORM
+package geeorm
 
 import (
 	"database/sql"
+	"geeorm/dialect"
 	"geeorm/log"
 	"geeorm/session"
 )
 
 type Engine struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect dialect.Dialect
 }
 
-func NewEngine(driver, source string) (*Engine, error) {
+func NewEngine(driver, source string) (e *Engine, err error) {
 	db, err := sql.Open(driver, source)
-
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return
 	}
 
 	if err = db.Ping(); err != nil {
 		log.Error(err)
-		return nil, err
+		return
 	}
 
-	e := Engine{db: db}
-	log.Info("Successfully connected to database")
+	dial, ok := dialect.GetDialect(driver)
+	if !ok {
+		log.Errorf("dialect %s Not Found", driver)
+		return
+	}
+	e = &Engine{db: db, dialect: dial}
+	log.Info("Connect database success")
+	return
+}
 
-	return &e, nil
+func (engine *Engine) NewSession() *session.Session {
+	return session.New(engine.db, engine.dialect)
 }
 
 func (engine *Engine) Close() {
@@ -34,8 +43,4 @@ func (engine *Engine) Close() {
 		log.Error(err)
 	}
 	log.Info("Successfully closed database")
-}
-
-func (engine *Engine) NewSession() *session.Session {
-	return session.New(engine.db)
 }
